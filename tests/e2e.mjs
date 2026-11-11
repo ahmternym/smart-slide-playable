@@ -22,8 +22,13 @@ async function open(viewport, extra = {}) {
   return page;
 }
 
+// cellCenter is in canvas (device) pixels; the mouse works in CSS pixels
 async function center(page, row, col) {
-  return page.evaluate(([r, c]) => window.__playable.cellCenter(r, c), [row, col]);
+  return page.evaluate(([r, c]) => {
+    const p = window.__playable.cellCenter(r, c);
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+    return { x: p.x / dpr, y: p.y / dpr };
+  }, [row, col]);
 }
 
 async function swipe(page, row, col, dir) {
@@ -56,6 +61,7 @@ await p.screenshot({ path: `${out}/5-endcard.png` });
 await p.mouse.click(195, 300);
 const opened = await p.evaluate(() => window.__opened);
 const events = await p.evaluate(() => window.__playableEvents.map(e => e.name));
+await p.close();
 
 // 2) Landscape tablet + fail path
 const l = await open({ width: 1024, height: 700 });
@@ -68,11 +74,13 @@ await swipe(l, 0, 3, 'DOWN');
 await page_wait(l, 1200);
 await l.screenshot({ path: `${out}/6-landscape-fail-endcard.png` });
 const lEvents = await l.evaluate(() => window.__playableEvents.map(e => e.name));
+await l.close();
 
 // 3) Small phone, Turkish locale
 const s = await open({ width: 320, height: 568 }, { locale: 'tr-TR' });
 await page_wait(s, 1500);
 await s.screenshot({ path: `${out}/7-small-tr.png` });
+await s.close();
 
 // 4) MRAID container: game must wait for "ready" and CTA must call mraid.open
 const mp = await browser.newPage({ viewport: { width: 375, height: 667 } });
@@ -93,8 +101,22 @@ await mp.waitForFunction(() => window.__playable && window.__playable.m);
 await mp.evaluate(() => window.__playable.showEndCard('timeout'));
 await mp.mouse.click(187, 200);
 const mraidOpened = await mp.evaluate(() => window.__mraidOpened);
+await mp.close();
 
-console.log(JSON.stringify({ opened, events, lEvents, startedEarly, mraidOpened, errors }, null, 2));
+// 5) Retina phone (DPR 3): sharpness + win banner over the board
+const rp = await open({ width: 390, height: 844 }, { deviceScaleFactor: 3 });
+const canvasSize = await rp.evaluate(() => { const c = document.querySelector('canvas'); return [c.width, c.height, c.clientWidth, c.clientHeight]; });
+await swipe(rp, 3, 1, 'UP');
+await rp.screenshot({ path: `${out}/8-retina-win-banner.png` });
+await page_wait(rp, 1500);
+await swipe(rp, 1, 0, 'RIGHT');
+await swipe(rp, 1, 3, 'UP');
+await swipe(rp, 0, 3, 'LEFT');
+await swipe(rp, 0, 0, 'DOWN');
+await rp.screenshot({ path: `${out}/9-retina-level2-win.png` });
+const rEvents = await rp.evaluate(() => window.__playableEvents.map(e => e.name));
+
+console.log(JSON.stringify({ opened, events, lEvents, startedEarly, mraidOpened, canvasSize, rEvents, errors }, null, 2));
 await browser.close();
 
 async function page_wait(page, ms) { await page.waitForTimeout(ms); }

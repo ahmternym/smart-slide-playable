@@ -21,7 +21,7 @@ The hand isn't scripted. It runs a **BFS solver** on the current board, so it al
 | Google Ads HTML5 | CTA calls `ExitApi.exit()` |
 | Meta Playables | CTA calls `FbPlayableAd.onCTAClick()` |
 | Store routing | iOS → App Store, everything else → Google Play |
-| Any screen size | `Scale.RESIZE` layout, portrait and landscape |
+| Any screen size | Layout scales with the screen in portrait and landscape; the canvas renders at device resolution (up to 3×), so text stays sharp on retina phones |
 | Language | English and Turkish, picked from the device language |
 | Analytics hooks | Events (`start`, `first_interaction`, `move`, `level_complete`, `level_fail`, `endcard`, `cta_click`) are pushed to `window.__playableEvents` |
 

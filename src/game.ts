@@ -55,7 +55,6 @@ export class PlayScene extends Phaser.Scene {
   private movesText!: Phaser.GameObjects.Text;
   private hand: Phaser.GameObjects.Container | null = null;
   private hintTimer: Phaser.Time.TimerEvent | null = null;
-  private startedAt = 0;
   private downAt: { x: number; y: number; blockId: number | null } | null = null;
 
   constructor() {
@@ -63,7 +62,6 @@ export class PlayScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.startedAt = this.time.now;
     (window as unknown as { __playable?: PlayScene }).__playable = this; // QA hook for automated tests
     this.cameras.main.setBackgroundColor(BG);
     this.scale.on('resize', () => this.layout());
@@ -193,7 +191,7 @@ export class PlayScene extends Phaser.Scene {
     body.fillStyle(0xffffff, 0.16).fillRoundedRect(-s / 2 + s * 0.08, -s / 2 + s * 0.08, s * 0.84, s * 0.22, s * 0.1);
     c.add(body);
     const ring = this.add.graphics();
-    ring.lineStyle(Math.max(3, cell * 0.06), SELECTION, 1).strokeRoundedRect(-s / 2 - 3, -s / 2 - 3, s + 6, s + 6, s * 0.18);
+    ring.lineStyle(Math.max(3, cell * 0.06), SELECTION, 1).strokeRoundedRect(-s * 0.54, -s * 0.54, s * 1.08, s * 1.08, s * 0.18);
     ring.setVisible(this.selectedId === b.id).setName('ring');
     c.add(ring);
     if (isLocked(this.level, b)) c.add(this.makeCheck(s));
@@ -281,7 +279,7 @@ export class PlayScene extends Phaser.Scene {
     const view = this.blockViews.get(blockId);
     if (!to || !view) {
       // Blocked: small shake so the swipe still gives feedback
-      if (view) this.tweens.add({ targets: view, x: view.x + (dir === 'LEFT' ? -6 : dir === 'RIGHT' ? 6 : 0), y: view.y + (dir === 'UP' ? -6 : dir === 'DOWN' ? 6 : 0), duration: 60, yoyo: true });
+      if (view) this.tweens.add({ targets: view, x: view.x + (dir === 'LEFT' ? -1 : dir === 'RIGHT' ? 1 : 0) * this.m.cell * 0.07, y: view.y + (dir === 'UP' ? -1 : dir === 'DOWN' ? 1 : 0) * this.m.cell * 0.07, duration: 60, yoyo: true });
       this.scheduleHint(HINT_IDLE_MS);
       return;
     }
@@ -320,14 +318,9 @@ export class PlayScene extends Phaser.Scene {
 
   private onWin(): void {
     track('level_complete', { level: this.level.id, moves: this.moves });
-    const { w, unit } = this.m;
     const optimal = solve(this.level, cloneBlocks(this.level.blocks))?.length ?? this.moves;
     const label = this.moves <= optimal ? T.perfect : T.great;
-    const t = this.add.text(w / 2, this.m.boardY - unit * 4, label, {
-      fontFamily: FONT, fontSize: `${Math.round(unit * 8)}px`, fontStyle: 'bold', color: '#c97e2d'
-    }).setOrigin(0.5).setScale(0.2);
-    this.root.add(t);
-    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' });
+    this.banner(label, '#c97e2d');
     this.time.delayedCall(1100, () => {
       if (this.phase === 'end') return;
       if (this.levelIndex + 1 < LEVELS.length) this.loadLevel(this.levelIndex + 1);
@@ -337,12 +330,24 @@ export class PlayScene extends Phaser.Scene {
 
   private onFail(): void {
     track('level_fail', { level: this.level.id });
-    const { w, unit } = this.m;
-    const t = this.add.text(w / 2, this.m.boardY - unit * 4, T.outOfMoves, {
-      fontFamily: FONT, fontSize: `${Math.round(unit * 7)}px`, fontStyle: 'bold', color: '#c62836'
-    }).setOrigin(0.5);
-    this.root.add(t);
+    this.banner(T.outOfMoves, '#c62836');
     this.time.delayedCall(900, () => this.showEndCard('fail'));
+  }
+
+  /** Result message on a card centred over the board, so it never collides with the header texts. */
+  private banner(label: string, color: string): void {
+    const { boardX, boardY, boardSize, unit } = this.m;
+    const t = this.add.text(0, 0, label, {
+      fontFamily: FONT, fontSize: `${Math.round(unit * 8)}px`, fontStyle: 'bold', color
+    }).setOrigin(0.5);
+    const bw = Math.min(boardSize * 0.9, t.width + unit * 12);
+    const bh = t.height + unit * 6;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.12).fillRoundedRect(-bw / 2, -bh / 2 + unit, bw, bh, bh * 0.3);
+    bg.fillStyle(0xffffff, 0.97).fillRoundedRect(-bw / 2, -bh / 2, bw, bh, bh * 0.3);
+    const c = this.add.container(boardX + boardSize / 2, boardY + boardSize / 2, [bg, t]).setScale(0.3).setAlpha(0);
+    this.root.add(c);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
   }
 
   private burst(x: number, y: number, color: number): void {
