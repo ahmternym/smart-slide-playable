@@ -1,0 +1,24 @@
+{
+  "name": "smart-slide-playable",
+  "version": "1.0.0",
+  "description": "Single-file HTML5 playable ad for Smart Slide (Phaser + TypeScript)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "author": "Ahmet Eren Yaman",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vite": "5.4.10",
+    "vite-plugin-singlefile": "2.0.3",
+    "vitest": "2.1.4"
+  },
+  "dependencies": {
+    "phaser": "3.86.0"
+  },
+  "type": "module",
+  "private": true
+}
